@@ -1,69 +1,54 @@
-from __future__ import print_function
-import time
-import urllib.error
-import urllib.parse
-import urllib.request
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy as sp
+import datetime
 
 
 class GoogleFinance(object):
-    cookier = urllib.request.HTTPCookieProcessor()
 
-    def __init__(self):
-        # Build the cookie handler
-        # self.cookier = urllib.request.HTTPCookieProcessor()
-        self.opener = urllib.request.build_opener(GoogleFinance.cookier)
-        urllib.request.install_opener(self.opener)
+    def plot(self):
+        data = sp.genfromtxt(r"data\EMG.csv", delimiter=",", usecols=(0, 1, 2, 3, 4, 5),
+                             skip_header=1, dtype=int)
+        days = data.__len__()
+        print(days)
+        data90 = np.reshape(data, (days, 6))#[::-1]
+        x = np.arange(days)
+        x90 = np.reshape(x, (days, 1))
+        print(data90.shape)
+        print(x90.shape)
+        data2 = np.hstack((x90, data90))
+        print(data2)
+        x = data2[:, 0]
+        y = data2[:, 2]
+        x = x[~sp.isnan(y)]
+        y = y[~sp.isnan(y)]
 
-        # Cookie and corresponding crumb
-        self._cookie = None
-        self._crumb = None
+        plt.scatter(x, y, s=2)
+        plt.xticks(np.arange(min(x), max(x) + 1, 365), np.arange(min(x) / 365, (max(x) + 1) / 365, 1))
+        plt.legend(["EMG.L"], loc="upper left")
+        plt.grid(True, linestyle='-', color='0.75')
+        plt.savefig("D:\plot.png")
 
-        # Headers to fake a user agent
-        self._headers = {'User-Agent': 'Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11'}
+        fp1, residuals, rank, sv, rcond = sp.polyfit(x, y, 1, full=True)
 
-    def _get_cookie_crumb(self):
-        req = urllib.request.Request('https://finance.yahoo.com/quote/^GSPC', headers=self._headers)
-        f = urllib.request.urlopen(req)
-        alines = f.read().decode('utf-8')
+        def error(f, x, y):
+            return sp.sum((f(x) - y) ** 2)
 
-        global _crumb
-        cs = alines.find('CrumbStore')
-        cr = alines.find('crumb', cs + 10)
-        cl = alines.find(':', cr + 5)
-        q1 = alines.find('"', cl + 1)
-        q2 = alines.find('"', q1 + 1)
-        crumb = alines[q1 + 1:q2]
-        _crumb = crumb
+        print("Model parameters: %s" % fp1)
+        print(residuals)
+        f1 = sp.poly1d(fp1)
+        print(error(f1, x, y))
 
-        for c in self.cookier.cookiejar:
-            if c.domain != '.yahoo.com':
-                continue
-            if c.name != 'B':
-                continue
-            self._cookie = c.value
+        fx = sp.linspace(0, x[-1], 1000)  # generate X-values for plotting
+        plt.plot(fx, f1(fx), linewidth=2, color='green')
+        plt.savefig("D:\plot_1.png")
 
-    def load_yahoo_quote(self, ticker, begindate, enddate, info='quote'):
-        if self._cookie is None or self._crumb is None:
-            self._get_cookie_crumb()
+        f2p = sp.polyfit(x, y, 2)
+        f2 = sp.poly1d(f2p)
+        plt.plot(fx, f2(fx), linewidth=2, color='yellow')
+        plt.savefig("D:\plot_2.png")
 
-        tb = time.mktime((int(begindate[0:4]), int(begindate[4:6]), int(begindate[6:8]), 4, 0, 0, 0, 0, 0))
-        te = time.mktime((int(enddate[0:4]), int(enddate[4:6]), int(enddate[6:8]), 18, 0, 0, 0, 0, 0))
-
-        param = dict()
-        param['period1'] = int(tb)
-        param['period2'] = int(te)
-        param['interval'] = '1d'
-        if info == 'quote':
-            param['events'] = 'history'
-        elif info == 'dividend':
-            param['events'] = 'div'
-        elif info == 'split':
-            param['events'] = 'split'
-        param['crumb'] = _crumb
-        params = urllib.parse.urlencode(param)
-        url = 'https://query1.finance.yahoo.com/v7/finance/download/{}?{}'.format(ticker, params)
-        req = urllib.request.Request(url, headers=self._headers)
-
-        f = urllib.request.urlopen(req)
-        alines = f.read().decode('utf-8')
-        return alines.split('\n')
+        f10p = sp.polyfit(x, y, 10)
+        f10 = sp.poly1d(f10p)
+        plt.plot(fx, f10(fx), linewidth=2, color='red')
+        plt.savefig("D:\plot_3.png")

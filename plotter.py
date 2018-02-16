@@ -6,13 +6,15 @@ import scipy as sp
 class Plotter(object):
 
     def plot(self):
-        data = sp.genfromtxt("D:\SampleData\web_traffic.tsv", delimiter="\t")
+        data = sp.genfromtxt("H:\SampleData\web_traffic.tsv", delimiter="\t")
+        print(data)
+        print(data.shape)
         x = data[:, 0]
         y = data[:, 1]
         x = x[~sp.isnan(y)]
         y = y[~sp.isnan(y)]
 
-        plt.scatter(x, y, s=10)
+        plt.scatter(x, y, s=2)
         plt.xticks([w*7*24 for w in range(10)],
                    ['week %i' % w for w in range(10)])
         plt.autoscale(tight=True)
